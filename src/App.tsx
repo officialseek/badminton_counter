@@ -265,7 +265,6 @@ function ScoreboardDisplay({ matchId }: { matchId: string }) {
   const serverAtStart = state.serverAtStart === 2 ? 2 : 1
   const currentServer = getCurrentServer(state.score1, state.score2, serverAtStart)
   const leftServes = currentServer === (mirrored ? 2 : 1)
-  const rightServes = currentServer === (mirrored ? 1 : 2)
 
   const hasNoData =
     state.name1 === '' &&
@@ -275,45 +274,41 @@ function ScoreboardDisplay({ matchId }: { matchId: string }) {
     state.set1 === 0 &&
     state.set2 === 0
 
+  const servingName = leftServes ? leftName : rightName
+
   return (
-    <div className="scoreboard-display">
-      <div className="scoreboard-header">
-        <h1 className="scoreboard-title">🏸 Poäng</h1>
-        <button
-          type="button"
-          className="btn-swap scoreboard-mirror"
-          onClick={() => setMirrored((m) => !m)}
-          aria-pressed={mirrored}
-        >
-          {mirrored ? '⇄ Spegling på' : '⇄ Spegla'}
-        </button>
-      </div>
+    <div className="scoreboard-tavla">
       {hasNoData && (
         <p className="scoreboard-waiting">
           Väntar på matchdata. Öppna länken på samma enhet som poängräknaren.
         </p>
       )}
-      <div className="scoreboard-court">
-        <div className="scoreboard-side">
-          <span className="scoreboard-name">
-            {leftName}
-            {leftServes && <span className="serve-indicator" title="Servar">🏸</span>}
-          </span>
-          <span className="scoreboard-score">{leftScore}</span>
-          <span className="scoreboard-set-label">Set</span>
-          <span className="scoreboard-set">{leftSet}</span>
+      <div className="scoreboard-board">
+        <div className="tavla-side tavla-left">
+          <span className="tavla-name">{leftName}</span>
+          <span className="tavla-score">{leftScore}</span>
+          <span className="tavla-sets">Set: {leftSet}</span>
         </div>
-        <span className="scoreboard-vs">–</span>
-        <div className="scoreboard-side">
-          <span className="scoreboard-name">
-            {rightName}
-            {rightServes && <span className="serve-indicator" title="Servar">🏸</span>}
-          </span>
-          <span className="scoreboard-score">{rightScore}</span>
-          <span className="scoreboard-set-label">Set</span>
-          <span className="scoreboard-set">{rightSet}</span>
+        <span className="tavla-divider" aria-hidden>–</span>
+        <div className="tavla-side tavla-right">
+          <span className="tavla-name">{rightName}</span>
+          <span className="tavla-score">{rightScore}</span>
+          <span className="tavla-sets">Set: {rightSet}</span>
         </div>
       </div>
+      <div className="tavla-serve">
+        <span className="tavla-serve-label">Servar</span>
+        <span className="tavla-serve-name">🏸 {servingName}</span>
+      </div>
+      <button
+        type="button"
+        className="tavla-mirror"
+        onClick={() => setMirrored((m) => !m)}
+        aria-pressed={mirrored}
+        title={mirrored ? 'Slå av spegling' : 'Spegla tavlan'}
+      >
+        ⇄
+      </button>
     </div>
   )
 }
