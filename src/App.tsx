@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from 'react'
 import QRCode from 'qrcode'
 import { Html5Qrcode } from 'html5-qrcode'
 
+export type ServerPlayer = 1 | 2
+
 export interface ScoreboardState {
   name1: string
   name2: string
@@ -9,6 +11,8 @@ export interface ScoreboardState {
   score2: number
   set1: number
   set2: number
+  /** Vem som servar från start (0-0). Därefter växlar serven varje poäng. */
+  serverAtStart: ServerPlayer
 }
 
 const MATCH_ID_STORAGE_KEY = 'badminton-current-match-id'
@@ -29,6 +33,7 @@ function loadMatchState(matchId: string): ScoreboardState | null {
         score2: Number(data.score2) || 0,
         set1: Number(data.set1) || 0,
         set2: Number(data.set2) || 0,
+        serverAtStart: data.serverAtStart === 2 ? 2 : 1,
       }
     }
   } catch {
@@ -48,6 +53,13 @@ const EMPTY_STATE: ScoreboardState = {
   score2: 0,
   set1: 0,
   set2: 0,
+  serverAtStart: 1,
+}
+
+/** Beräknar vem som servar nu: växlar varje poäng från serverAtStart. */
+function getCurrentServer(score1: number, score2: number, serverAtStart: ServerPlayer): ServerPlayer {
+  const totalPoints = score1 + score2
+  return totalPoints % 2 === 0 ? serverAtStart : (serverAtStart === 1 ? 2 : 1)
 }
 
 function getMatchSummary(
@@ -250,6 +262,11 @@ function ScoreboardDisplay({ matchId }: { matchId: string }) {
   const leftSet = mirrored ? state.set2 : state.set1
   const rightSet = mirrored ? state.set1 : state.set2
 
+  const serverAtStart = state.serverAtStart === 2 ? 2 : 1
+  const currentServer = getCurrentServer(state.score1, state.score2, serverAtStart)
+  const leftServes = currentServer === (mirrored ? 2 : 1)
+  const rightServes = currentServer === (mirrored ? 1 : 2)
+
   const hasNoData =
     state.name1 === '' &&
     state.name2 === '' &&
@@ -278,14 +295,20 @@ function ScoreboardDisplay({ matchId }: { matchId: string }) {
       )}
       <div className="scoreboard-court">
         <div className="scoreboard-side">
-          <span className="scoreboard-name">{leftName}</span>
+          <span className="scoreboard-name">
+            {leftName}
+            {leftServes && <span className="serve-indicator" title="Servar">🏸</span>}
+          </span>
           <span className="scoreboard-score">{leftScore}</span>
           <span className="scoreboard-set-label">Set</span>
           <span className="scoreboard-set">{leftSet}</span>
         </div>
         <span className="scoreboard-vs">–</span>
         <div className="scoreboard-side">
-          <span className="scoreboard-name">{rightName}</span>
+          <span className="scoreboard-name">
+            {rightName}
+            {rightServes && <span className="serve-indicator" title="Servar">🏸</span>}
+          </span>
           <span className="scoreboard-score">{rightScore}</span>
           <span className="scoreboard-set-label">Set</span>
           <span className="scoreboard-set">{rightSet}</span>
@@ -313,6 +336,7 @@ function AppMain() {
   const [score2, setScore2] = useState(0)
   const [set1, setSet1] = useState(0)
   const [set2, setSet2] = useState(0)
+  const [serverAtStart, setServerAtStart] = useState<ServerPlayer>(1)
   const [saveModalOpen, setSaveModalOpen] = useState(false)
   const [qrModalOpen, setQrModalOpen] = useState(false)
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null)
@@ -326,6 +350,7 @@ function AppMain() {
     score2,
     set1,
     set2,
+    serverAtStart,
   }
 
   useEffect(() => {
@@ -333,7 +358,7 @@ function AppMain() {
       localStorage.setItem(MATCH_ID_STORAGE_KEY, matchId)
       saveMatchState(matchId, scoreboardState)
     }
-  }, [matchId, name1, name2, score1, score2, set1, set2])
+  }, [matchId, name1, name2, score1, score2, set1, set2, serverAtStart])
 
   const displayUrl =
     typeof window !== 'undefined'
@@ -356,6 +381,7 @@ function AppMain() {
     setScore2(score1)
     setSet1(set2)
     setSet2(set1)
+    setServerAtStart((s) => (s === 1 ? 2 : 1))
   }
 
   const handleCopy = () => {
@@ -396,6 +422,27 @@ function AppMain() {
           >
             ⇄ Byt sida
           </button>
+          <div className="server-choice">
+            <span className="server-choice-label">Servar från start</span>
+            <div className="server-choice-buttons">
+              <button
+                type="button"
+                className={`btn-server ${serverAtStart === 1 ? 'active' : ''}`}
+                onClick={() => setServerAtStart(1)}
+                aria-pressed={serverAtStart === 1}
+              >
+                1
+              </button>
+              <button
+                type="button"
+                className={`btn-server ${serverAtStart === 2 ? 'active' : ''}`}
+                onClick={() => setServerAtStart(2)}
+                aria-pressed={serverAtStart === 2}
+              >
+                2
+              </button>
+            </div>
+          </div>
         </div>
 
         <PlayerSide
