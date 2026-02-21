@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import QRCode from 'qrcode'
 import { Html5Qrcode } from 'html5-qrcode'
+import { writeMatchState, subscribeMatchState, isFirebaseEnabled } from './firebase-sync'
 
 export type ServerPlayer = 1 | 2
 
@@ -11,8 +12,10 @@ export interface ScoreboardState {
   score2: number
   set1: number
   set2: number
-  /** Vem som servar från start (0-0). Därefter växlar serven varje poäng. */
+  /** Vem som servar från start (0-0). */
   serverAtStart: ServerPlayer
+  /** Vem som servar nu – den som vann senaste poängen servar nästa boll. */
+  currentServer: ServerPlayer
 }
 
 const MATCH_ID_STORAGE_KEY = 'badminton-current-match-id'
@@ -26,6 +29,8 @@ function loadMatchState(matchId: string): ScoreboardState | null {
     const raw = localStorage.getItem(getMatchStorageKey(matchId))
     if (raw) {
       const data = JSON.parse(raw) as ScoreboardState
+      const serverAtStart = data.serverAtStart === 2 ? 2 : 1
+      const currentServer = data.currentServer === 2 ? 2 : 1
       return {
         name1: data.name1 ?? '',
         name2: data.name2 ?? '',
@@ -33,7 +38,8 @@ function loadMatchState(matchId: string): ScoreboardState | null {
         score2: Number(data.score2) || 0,
         set1: Number(data.set1) || 0,
         set2: Number(data.set2) || 0,
-        serverAtStart: data.serverAtStart === 2 ? 2 : 1,
+        serverAtStart,
+        currentServer: typeof data.currentServer === 'number' ? currentServer : serverAtStart,
       }
     }
   } catch {
@@ -54,12 +60,7 @@ const EMPTY_STATE: ScoreboardState = {
   set1: 0,
   set2: 0,
   serverAtStart: 1,
-}
-
-/** Beräknar vem som servar nu: växlar varje poäng från serverAtStart. */
-function getCurrentServer(score1: number, score2: number, serverAtStart: ServerPlayer): ServerPlayer {
-  const totalPoints = score1 + score2
-  return totalPoints % 2 === 0 ? serverAtStart : (serverAtStart === 1 ? 2 : 1)
+  currentServer: 1,
 }
 
 function getMatchSummary(
@@ -68,7 +69,8 @@ function getMatchSummary(
   score1: number,
   score2: number,
   set1: number,
-  set2: number
+  set2: number,
+  serverAtStart: ServerPlayer
 ): string {
   const date = new Date()
   const dateStr = date.toLocaleDateString('sv-SE', {
@@ -83,11 +85,13 @@ function getMatchSummary(
   const p2 = name2.trim() || 'Spelare 2'
   const setWinner = set1 > set2 ? p1 : set2 > set1 ? p2 : null
   const pointWinner = score1 > score2 ? p1 : score2 > score1 ? p2 : null
+  const startedServing = serverAtStart === 1 ? p1 : p2
   let text = `🏸 BADMINTON MATCH\n`
   text += `${'═'.repeat(40)}\n\n`
   text += `Datum: ${dateStr}\n\n`
   text += `Set:   ${p1}  ${set1} – ${set2}  ${p2}\n`
-  text += `Poäng: ${p1}  ${score1} – ${score2}  ${p2}\n\n`
+  text += `Poäng: ${p1}  ${score1} – ${score2}  ${p2}\n`
+  text += `Servar från start: ${startedServing}\n\n`
   if (setWinner) {
     text += `Matchvinnare (set): ${setWinner}\n`
   }
@@ -253,6 +257,13 @@ function ScoreboardDisplay({ matchId }: { matchId: string }) {
     return () => window.removeEventListener('storage', onStorage)
   }, [storageKey])
 
+  useEffect(() => {
+    const unsubscribe = subscribeMatchState(matchId, (newState) => {
+      setState(newState)
+    })
+    return unsubscribe
+  }, [matchId])
+
   const p1Name = state.name1.trim() || 'Spelare 1'
   const p2Name = state.name2.trim() || 'Spelare 2'
   const leftName = mirrored ? p2Name : p1Name
@@ -262,8 +273,7 @@ function ScoreboardDisplay({ matchId }: { matchId: string }) {
   const leftSet = mirrored ? state.set2 : state.set1
   const rightSet = mirrored ? state.set1 : state.set2
 
-  const serverAtStart = state.serverAtStart === 2 ? 2 : 1
-  const currentServer = getCurrentServer(state.score1, state.score2, serverAtStart)
+  const currentServer = state.currentServer === 2 ? 2 : 1
   const leftServes = currentServer === (mirrored ? 2 : 1)
 
   const hasNoData =
@@ -280,7 +290,9 @@ function ScoreboardDisplay({ matchId }: { matchId: string }) {
     <div className="scoreboard-tavla">
       {hasNoData && (
         <p className="scoreboard-waiting">
-          Väntar på matchdata. Öppna länken på samma enhet som poängräknaren.
+          {isFirebaseEnabled()
+            ? 'Väntar på matchdata från poängräknaren…'
+            : 'Väntar på matchdata. Öppna länken på samma enhet som poängräknaren, eller aktivera Firebase för synk mellan enheter.'}
         </p>
       )}
       <div className="scoreboard-board">
@@ -332,8 +344,10 @@ function AppMain() {
   const [set1, setSet1] = useState(0)
   const [set2, setSet2] = useState(0)
   const [serverAtStart, setServerAtStart] = useState<ServerPlayer>(1)
+  const [currentServer, setCurrentServer] = useState<ServerPlayer>(1)
   const [saveModalOpen, setSaveModalOpen] = useState(false)
   const [qrModalOpen, setQrModalOpen] = useState(false)
+  const [qrModalMatchId, setQrModalMatchId] = useState<string | null>(null)
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null)
   const [copyLabel, setCopyLabel] = useState('Kopiera')
   const [downloadLabel, setDownloadLabel] = useState('Ladda ner fil')
@@ -346,37 +360,41 @@ function AppMain() {
     set1,
     set2,
     serverAtStart,
+    currentServer,
   }
 
   useEffect(() => {
     if (matchId) {
       localStorage.setItem(MATCH_ID_STORAGE_KEY, matchId)
       saveMatchState(matchId, scoreboardState)
+      writeMatchState(matchId, scoreboardState)
     }
-  }, [matchId, name1, name2, score1, score2, set1, set2, serverAtStart])
+  }, [matchId, name1, name2, score1, score2, set1, set2, serverAtStart, currentServer])
 
   const displayUrl =
-    typeof window !== 'undefined'
-      ? `${window.location.origin}${window.location.pathname || '/'}?display=1&match=${matchId ?? ''}`
+    typeof window !== 'undefined' && (qrModalMatchId ?? matchId)
+      ? `${window.location.origin}${window.location.pathname || '/'}?display=1&match=${encodeURIComponent(qrModalMatchId ?? matchId ?? '')}`
       : ''
 
   useEffect(() => {
-    if (!qrModalOpen || !matchId) return
-    QRCode.toDataURL(displayUrl, { width: 260, margin: 2 }).then(setQrDataUrl).catch(() => setQrDataUrl(null))
-  }, [qrModalOpen, matchId, displayUrl])
+    if (!qrModalOpen || !(qrModalMatchId ?? matchId)) return
+    const url = `${window.location.origin}${window.location.pathname || '/'}?display=1&match=${encodeURIComponent(qrModalMatchId ?? matchId ?? '')}`
+    QRCode.toDataURL(url, { width: 260, margin: 2 }).then(setQrDataUrl).catch(() => setQrDataUrl(null))
+  }, [qrModalOpen, qrModalMatchId, matchId])
 
-  const summary = getMatchSummary(name1, name2, score1, score2, set1, set2)
+  const summary = getMatchSummary(name1, name2, score1, score2, set1, set2, serverAtStart)
 
   const handleSwap = () => {
     const n1 = name1
     const n2 = name2
     setName1(n2)
     setName2(n1)
-    setScore1(score2)
-    setScore2(score1)
+    setScore1(0)
+    setScore2(0)
     setSet1(set2)
     setSet2(set1)
     setServerAtStart((s) => (s === 1 ? 2 : 1))
+    setCurrentServer((s) => (s === 1 ? 2 : 1))
   }
 
   const handleCopy = () => {
@@ -402,7 +420,11 @@ function AppMain() {
           name={name1}
           onNameChange={setName1}
           score={score1}
-          onScoreChange={(d) => setScore1((s) => Math.max(0, s + d))}
+          onScoreChange={(d) => {
+            setScore1((s) => Math.max(0, s + d))
+            if (d > 0) setCurrentServer(1)
+            else if (d < 0) setCurrentServer(2)
+          }}
           set={set1}
           onSetChange={(d) => setSet1((s) => Math.max(0, s + d))}
         />
@@ -422,21 +444,33 @@ function AppMain() {
             <div className="server-choice-buttons">
               <button
                 type="button"
-                className={`btn-server ${serverAtStart === 1 ? 'active' : ''}`}
-                onClick={() => setServerAtStart(1)}
-                aria-pressed={serverAtStart === 1}
+                className={`btn-server ${currentServer === 1 ? 'active' : ''}`}
+                onClick={() => {
+                  setCurrentServer(1)
+                  if (score1 + score2 === 0) setServerAtStart(1)
+                }}
+                aria-pressed={currentServer === 1}
               >
                 1
               </button>
               <button
                 type="button"
-                className={`btn-server ${serverAtStart === 2 ? 'active' : ''}`}
-                onClick={() => setServerAtStart(2)}
-                aria-pressed={serverAtStart === 2}
+                className={`btn-server ${currentServer === 2 ? 'active' : ''}`}
+                onClick={() => {
+                  setCurrentServer(2)
+                  if (score1 + score2 === 0) setServerAtStart(2)
+                }}
+                aria-pressed={currentServer === 2}
               >
                 2
               </button>
             </div>
+            <span className="server-choice-name" aria-live="polite">
+              {currentServer === 1 ? (name1.trim() || 'Spelare 1') : (name2.trim() || 'Spelare 2')}
+            </span>
+            {score1 + score2 > 0 && (
+              <span className="server-choice-locked">Började serva: {serverAtStart === 1 ? (name1.trim() || 'Spelare 1') : (name2.trim() || 'Spelare 2')}</span>
+            )}
           </div>
         </div>
 
@@ -445,7 +479,11 @@ function AppMain() {
           name={name2}
           onNameChange={setName2}
           score={score2}
-          onScoreChange={(d) => setScore2((s) => Math.max(0, s + d))}
+          onScoreChange={(d) => {
+            setScore2((s) => Math.max(0, s + d))
+            if (d > 0) setCurrentServer(2)
+            else if (d < 0) setCurrentServer(1)
+          }}
           set={set2}
           onSetChange={(d) => setSet2((s) => Math.max(0, s + d))}
         />
@@ -456,7 +494,10 @@ function AppMain() {
           type="button"
           className="btn-swap"
           onClick={() => {
-            if (!matchId) setMatchId(generateMatchId())
+            const id = matchId || generateMatchId()
+            if (!matchId) setMatchId(id)
+            setQrModalMatchId(id)
+            setQrDataUrl(null)
             setQrModalOpen(true)
           }}
         >
@@ -477,6 +518,17 @@ function AppMain() {
           className="btn-swap save-info-link"
           onClick={() => {
             setMatchId(null)
+            setQrModalMatchId(null)
+            setQrDataUrl(null)
+            setName1('')
+            setName2('')
+            setScore1(0)
+            setScore2(0)
+            setSet1(0)
+            setSet2(0)
+            setServerAtStart(1)
+            setCurrentServer(1)
+            setQrModalOpen(false)
             try {
               localStorage.removeItem(MATCH_ID_STORAGE_KEY)
             } catch {
@@ -484,14 +536,20 @@ function AppMain() {
             }
           }}
         >
-          Starta ny match (ny QR-länk)
+          Starta ny match
         </button>
       </div>
 
       {qrModalOpen && (
         <div
           className="modal-overlay"
-          onClick={(e) => e.target === e.currentTarget && setQrModalOpen(false)}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setQrModalOpen(false)
+              setQrModalMatchId(null)
+              setQrDataUrl(null)
+            }
+          }}
           role="dialog"
           aria-modal="true"
           aria-labelledby="qr-modal-title"
@@ -501,30 +559,40 @@ function AppMain() {
             <p className="qr-modal-text">
               Skanna QR-koden med den enhet som ska visa poängen. Den enheten är då kopplad till denna match.
             </p>
-            {qrDataUrl && (
-              <div className="qr-modal-image-wrap">
+            <div className="qr-modal-image-wrap">
+              {qrDataUrl ? (
                 <img src={qrDataUrl} alt="QR-kod för poängvisare" className="qr-modal-image" />
-              </div>
-            )}
+              ) : (
+                <span className="qr-modal-loading">Laddar QR-kod…</span>
+              )}
+            </div>
             <div className="qr-modal-url-wrap">
               <input
                 type="text"
                 readOnly
                 className="qr-modal-url"
-                value={displayUrl}
+                value={displayUrl || ''}
                 aria-label="Länk till poängvisare"
               />
               <button
                 type="button"
                 className="btn-copy"
                 onClick={() => {
-                  navigator.clipboard.writeText(displayUrl)
+                  if (displayUrl) navigator.clipboard.writeText(displayUrl)
                 }}
               >
                 Kopiera länk
               </button>
             </div>
-            <button type="button" className="btn-close" onClick={() => setQrModalOpen(false)}>
+            <button
+                type="button"
+                className="btn-close"
+                onClick={() => {
+                  setQrModalOpen(false)
+                  setQrModalMatchId(null)
+                  setQrDataUrl(null)
+                }}
+              >
               Stäng
             </button>
           </div>
