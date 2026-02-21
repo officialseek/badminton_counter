@@ -1,31 +1,31 @@
-# 🏸 Badminton Poängräknare
+# 🏸 Badminton Score Counter
 
-Enkel poängräknare för badminton byggd med React och TypeScript.
+A simple badminton score counter built with React and TypeScript.
 
-## Köra lokalt
+## Run locally
 
 ```bash
 npm install
 npm run dev
 ```
 
-Öppna [http://localhost:5173](http://localhost:5173) i webbläsaren.
+Open [http://localhost:5173](http://localhost:5173) in your browser.
 
-## Bygga för publicering
+## Build for production
 
 ```bash
 npm run build
 ```
 
-Färdig app hamnar i mappen `dist/`. Den kan publiceras på valfri webbhost (Netlify, Vercel, GitHub Pages, egen server).
+The built app goes into the `dist/` folder. You can deploy it to any static host (Netlify, Vercel, GitHub Pages, your own server).
 
-## Publicera som webbapp
+## Deploy as a web app
 
-- **Netlify:** Dra och släpp mappen `dist` på [app.netlify.com](https://app.netlify.com), eller koppla till Git och använd build-kommando: `npm run build`, publicera-mapp: `dist`.
-- **Vercel:** Koppla repot, build: `npm run build`, output: `dist`.
-- **GitHub Pages:** Kör `npm run build` och publicera innehållet i `dist` till en `gh-pages`-branch eller via GitHub Actions.
+- **Netlify:** Drag and drop the `dist` folder at [app.netlify.com](https://app.netlify.com), or connect your Git repo and use build command: `npm run build`, publish directory: `dist`.
+- **Vercel:** Connect the repo, build: `npm run build`, output: `dist`.
+- **GitHub Pages:** Run `npm run build` and publish the contents of `dist` to a `gh-pages` branch or via GitHub Actions.
 
-## Tekniker
+## Tech stack
 
 - React 18
 - TypeScript
