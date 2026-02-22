@@ -506,6 +506,16 @@ function AppMain() {
         <button
           type="button"
           className="btn-save"
+          onClick={() => {
+            const base = `${window.location.origin}${window.location.pathname || '/'}`
+            window.location.href = `${base}?display=1`
+          }}
+        >
+          📷 Skanna QR – öppna som poängvisare
+        </button>
+        <button
+          type="button"
+          className="btn-save"
           onClick={() => setSaveModalOpen(true)}
         >
           Spara match
