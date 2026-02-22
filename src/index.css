@@ -18,6 +18,13 @@
   --glass-radius-sm: 14px;
   --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.25), inset 0 1px 0 0 var(--glass-border-highlight);
   --glass-transition: 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+
+  /* Responsive: safe areas (notch, TV overscan) */
+  --safe-top: max(0px, env(safe-area-inset-top));
+  --safe-right: max(0px, env(safe-area-inset-right));
+  --safe-bottom: max(0px, env(safe-area-inset-bottom));
+  --safe-left: max(0px, env(safe-area-inset-left));
+  --touch-min: 44px;
 }
 
 * {
@@ -26,31 +33,52 @@
   padding: 0;
 }
 
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+[tabindex="0"]:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+html {
+  overflow-x: hidden;
+}
+
 #root {
   min-height: 100vh;
+  min-height: 100dvh;
   width: 100%;
+  max-width: 100vw;
   display: flex;
   flex-direction: column;
   align-items: center;
+  overflow-x: hidden;
 }
 
 body {
   font-family: 'Outfit', sans-serif;
   min-height: 100vh;
+  min-height: 100dvh;
   background: linear-gradient(165deg, var(--court-green) 0%, #0f2d1a 50%, #0a1f12 100%);
   color: var(--text);
-  padding: 1.5rem;
+  padding: clamp(0.75rem, 2vw, 1.5rem);
+  padding-top: calc(clamp(0.75rem, 2vw, 1.5rem) + var(--safe-top));
+  padding-right: calc(clamp(0.75rem, 2vw, 1.5rem) + var(--safe-right));
+  padding-bottom: calc(clamp(0.75rem, 2vw, 1.5rem) + var(--safe-bottom));
+  padding-left: calc(clamp(0.75rem, 2vw, 1.5rem) + var(--safe-left));
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
 }
 
 h1 {
-  font-size: 1.75rem;
+  font-size: clamp(1.25rem, 4vw, 1.75rem);
   font-weight: 700;
-  margin-bottom: 1.5rem;
+  margin-bottom: clamp(1rem, 2.5vw, 1.5rem);
   letter-spacing: -0.02em;
   text-shadow: 0 2px 10px rgba(0,0,0,0.2);
 }
@@ -58,15 +86,15 @@ h1 {
 .court {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
-  gap: 1rem;
+  gap: clamp(0.5rem, 2vw, 1rem);
   align-items: center;
-  max-width: 520px;
+  max-width: min(520px, 95vw);
   width: 100%;
   background: var(--glass-bg);
   backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
   -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
   border-radius: var(--glass-radius);
-  padding: 1.75rem;
+  padding: clamp(1rem, 3vw, 1.75rem);
   box-shadow: var(--glass-shadow);
   border: 1px solid var(--glass-border);
   transition: box-shadow var(--glass-transition), border-color var(--glass-transition);
@@ -133,10 +161,10 @@ h1 {
 }
 
 .score-display {
-  font-size: 3rem;
+  font-size: clamp(2.25rem, 8vw, 3rem);
   font-weight: 700;
   line-height: 1;
-  min-width: 3.5rem;
+  min-width: clamp(2.5rem, 8vw, 3.5rem);
   text-align: center;
   color: var(--accent);
   text-shadow: 0 0 20px rgba(245, 158, 11, 0.3);
@@ -162,13 +190,15 @@ h1 {
 }
 
 .btn-score {
-  width: 44px;
-  height: 44px;
+  min-width: var(--touch-min);
+  min-height: var(--touch-min);
+  width: clamp(44px, 10vw, 52px);
+  height: clamp(44px, 10vw, 52px);
   border: none;
   border-radius: var(--glass-radius-sm);
   background: linear-gradient(180deg, var(--accent) 0%, var(--accent-hover) 100%);
   color: var(--court-green);
-  font-size: 1.5rem;
+  font-size: clamp(1.25rem, 4vw, 1.5rem);
   font-weight: 700;
   cursor: pointer;
   transition: filter var(--glass-transition), transform var(--glass-transition), box-shadow var(--glass-transition);
@@ -211,9 +241,10 @@ h1 {
 }
 
 .btn-swap {
+  min-height: var(--touch-min);
   padding: 0.4rem 0.75rem;
   font-family: inherit;
-  font-size: 0.8rem;
+  font-size: clamp(0.75rem, 2vw, 0.8rem);
   font-weight: 600;
   border: 1px solid var(--glass-border);
   border-radius: var(--glass-radius-sm);
@@ -224,6 +255,9 @@ h1 {
   cursor: pointer;
   transition: background var(--glass-transition), border-color var(--glass-transition), color var(--glass-transition), box-shadow var(--glass-transition);
   box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.06);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .btn-swap:hover {
@@ -276,8 +310,10 @@ h1 {
 }
 
 .btn-server {
-  width: 32px;
-  height: 32px;
+  min-width: var(--touch-min);
+  min-height: var(--touch-min);
+  width: clamp(44px, 10vw, 48px);
+  height: clamp(44px, 10vw, 48px);
   border: 1px solid var(--glass-border);
   border-radius: 10px;
   background: rgba(0, 0, 0, 0.2);
@@ -285,11 +321,14 @@ h1 {
   -webkit-backdrop-filter: blur(6px);
   color: var(--text-muted);
   font-family: inherit;
-  font-size: 0.9rem;
+  font-size: clamp(0.8rem, 2vw, 0.9rem);
   font-weight: 600;
   cursor: pointer;
   transition: background var(--glass-transition), border-color var(--glass-transition), color var(--glass-transition);
   box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .btn-server:hover {
@@ -305,13 +344,13 @@ h1 {
 }
 
 .actions {
-  margin-top: 1.5rem;
+  margin-top: clamp(1rem, 2.5vw, 1.5rem);
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 0.75rem;
   width: 100%;
-  max-width: 520px;
+  max-width: min(520px, 95vw);
 }
 
 .btn-save {
@@ -361,8 +400,13 @@ h1 {
   align-items: center;
   justify-content: center;
   z-index: 100;
-  padding: 1rem;
+  padding: clamp(0.5rem, 2vw, 1rem);
+  padding-top: calc(clamp(0.5rem, 2vw, 1rem) + var(--safe-top));
+  padding-right: calc(clamp(0.5rem, 2vw, 1rem) + var(--safe-right));
+  padding-bottom: calc(clamp(0.5rem, 2vw, 1rem) + var(--safe-bottom));
+  padding-left: calc(clamp(0.5rem, 2vw, 1rem) + var(--safe-left));
   transition: background var(--glass-transition);
+  box-sizing: border-box;
 }
 
 .modal-overlay.hidden {
@@ -374,9 +418,12 @@ h1 {
   backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
   -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
   border-radius: var(--glass-radius);
-  padding: 1.5rem;
-  max-width: 400px;
+  padding: clamp(1rem, 3vw, 1.5rem);
+  max-width: min(400px, calc(100vw - 2rem));
   width: 100%;
+  max-height: calc(100vh - 2rem);
+  max-height: calc(100dvh - 2rem);
+  overflow-y: auto;
   box-shadow: var(--glass-shadow);
   border: 1px solid var(--glass-border);
   transition: transform var(--glass-transition), box-shadow var(--glass-transition);
@@ -444,7 +491,11 @@ h1 {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 1.5rem;
+  padding: clamp(0.75rem, 2vw, 1.5rem);
+  padding-top: calc(clamp(0.75rem, 2vw, 1.5rem) + var(--safe-top));
+  padding-right: calc(clamp(0.75rem, 2vw, 1.5rem) + var(--safe-right));
+  padding-bottom: calc(clamp(0.75rem, 2vw, 1.5rem) + var(--safe-bottom));
+  padding-left: calc(clamp(0.75rem, 2vw, 1.5rem) + var(--safe-left));
   box-sizing: border-box;
 }
 
@@ -455,15 +506,15 @@ h1 {
 .scoreboard-board {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
-  gap: 1.5rem;
+  gap: clamp(0.75rem, 2vw, 1.5rem);
   align-items: center;
   width: 100%;
-  max-width: 720px;
+  max-width: min(720px, 95vw);
   background: var(--glass-bg);
   backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
   -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
   border-radius: var(--glass-radius);
-  padding: 2.5rem 2rem;
+  padding: clamp(1.25rem, 4vw, 2.5rem) clamp(1rem, 3vw, 2rem);
   box-shadow: var(--glass-shadow);
   border: 1px solid var(--glass-border);
   position: relative;
@@ -500,7 +551,7 @@ h1 {
 }
 
 .tavla-score {
-  font-size: clamp(4rem, 18vw, 8rem);
+  font-size: clamp(4rem, 18vw, 10rem);
   font-weight: 700;
   line-height: 1;
   color: var(--accent);
@@ -549,10 +600,12 @@ h1 {
 
 .tavla-mirror {
   position: fixed;
-  bottom: 1rem;
-  right: 1rem;
-  width: 44px;
-  height: 44px;
+  bottom: calc(1rem + var(--safe-bottom));
+  right: calc(1rem + var(--safe-right));
+  min-width: var(--touch-min);
+  min-height: var(--touch-min);
+  width: clamp(44px, 10vw, 52px);
+  height: clamp(44px, 10vw, 52px);
   border: 1px solid var(--glass-border);
   border-radius: 50%;
   background: rgba(0, 0, 0, 0.3);
@@ -563,6 +616,9 @@ h1 {
   cursor: pointer;
   transition: border-color var(--glass-transition), color var(--glass-transition), background var(--glass-transition);
   z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .tavla-mirror:hover {
@@ -647,7 +703,7 @@ h1 {
 
 /* QR modal */
 .qr-modal {
-  max-width: 340px;
+  max-width: min(340px, calc(100vw - 2rem));
 }
 
 .qr-modal-text {
@@ -704,4 +760,139 @@ h1 {
 .qr-modal .btn-close {
   margin-top: 1rem;
   width: 100%;
+  min-height: var(--touch-min);
+}
+
+/* ---- Responsive: Mobile (narrow) – tavla stacked ---- */
+@media (max-width: 480px) {
+  .scoreboard-board {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto;
+    gap: 1rem;
+  }
+  .tavla-divider {
+    order: 2;
+    font-size: clamp(1.5rem, 6vw, 2.5rem);
+  }
+  .tavla-side:first-of-type { order: 1; }
+  .tavla-side:last-of-type { order: 3; }
+  .tavla-serve {
+    margin-top: 1rem;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+}
+
+/* ---- Responsive: Mobile (small) ---- */
+@media (max-width: 380px) {
+  .court {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto;
+    gap: 0.75rem;
+  }
+  .court-center {
+    order: 2;
+    flex-direction: row;
+    justify-content: center;
+    gap: 1rem;
+  }
+  .side:first-of-type { order: 1; }
+  .side:last-of-type { order: 3; }
+  .score-controls {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+}
+
+/* ---- Responsive: Tablet ---- */
+@media (min-width: 768px) {
+  .court {
+    max-width: 540px;
+  }
+  .scoreboard-board {
+    max-width: 680px;
+  }
+  .tavla-score {
+    font-size: clamp(5rem, 12vw, 8rem);
+  }
+}
+
+/* ---- Responsive: Desktop ---- */
+@media (min-width: 1024px) {
+  body {
+    padding: 2rem;
+    padding-top: calc(2rem + var(--safe-top));
+    padding-right: calc(2rem + var(--safe-right));
+    padding-bottom: calc(2rem + var(--safe-bottom));
+    padding-left: calc(2rem + var(--safe-left));
+  }
+  .court {
+    max-width: 560px;
+  }
+  .actions {
+    max-width: 560px;
+  }
+  .scoreboard-board {
+    max-width: 720px;
+  }
+}
+
+/* ---- Responsive: TV / large screens (viewing from distance) ---- */
+@media (min-width: 1280px) {
+  #root {
+    max-width: 90rem;
+  }
+  body {
+    padding: clamp(2rem, 5vw, 4rem);
+    padding-top: calc(clamp(2rem, 5vw, 4rem) + var(--safe-top));
+    padding-right: calc(clamp(2rem, 5vw, 4rem) + var(--safe-right));
+    padding-bottom: calc(clamp(2rem, 5vw, 4rem) + var(--safe-bottom));
+    padding-left: calc(clamp(2rem, 5vw, 4rem) + var(--safe-left));
+  }
+  h1 {
+    font-size: clamp(1.5rem, 1.8vw, 2rem);
+  }
+  .score-display {
+    font-size: clamp(2.5rem, 2.5vw, 3.5rem);
+  }
+  .scoreboard-board {
+    max-width: min(800px, 55vw);
+  }
+  .tavla-name {
+    font-size: clamp(1.1rem, 1.4vw, 1.5rem);
+  }
+  .tavla-score {
+    font-size: clamp(5rem, 6vw, 10rem);
+  }
+  .tavla-sets {
+    font-size: clamp(1.2rem, 1.4vw, 1.5rem);
+  }
+  .tavla-serve-label,
+  .tavla-serve-name {
+    font-size: clamp(0.9rem, 1.1vw, 1.2rem);
+  }
+  .btn-score {
+    width: 52px;
+    height: 52px;
+    font-size: 1.5rem;
+  }
+  .btn-save,
+  .btn-close,
+  .scan-connect-btn {
+    min-height: 52px;
+    font-size: 1.05rem;
+    padding: 1rem 1.5rem;
+  }
+}
+
+/* ---- TV overscan: extra safe margin on very large viewports ---- */
+@media (min-width: 1920px) {
+  body {
+    padding-left: calc(4rem + var(--safe-left) + env(safe-area-inset-left, 0px));
+    padding-right: calc(4rem + var(--safe-right) + env(safe-area-inset-right, 0px));
+  }
+  .scoreboard-tavla {
+    padding-left: calc(2rem + var(--safe-left));
+    padding-right: calc(2rem + var(--safe-right));
+  }
 }
