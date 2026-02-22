@@ -15,6 +15,7 @@ import * as Clipboard from 'expo-clipboard'
 import { CameraView, useCameraPermissions } from 'expo-camera'
 import QRCode from 'qrcode'
 import { StatusBar } from 'expo-status-bar'
+import { writeMatchState, subscribeMatchState, isFirebaseEnabled } from './firebase-sync'
 
 const MATCH_ID_KEY = 'badminton-current-match-id'
 const getMatchKey = (id: string) => `badminton-match-${id}`
@@ -158,6 +159,7 @@ export default function App() {
     if (!matchId) return
     AsyncStorage.setItem(MATCH_ID_KEY, matchId)
     saveMatchState(matchId, state)
+    if (isFirebaseEnabled()) writeMatchState(matchId, state)
   }, [matchId, name1, name2, score1, score2, set1, set2, serverAtStart, currentServer])
 
   useEffect(() => {
@@ -221,6 +223,10 @@ export default function App() {
 
   useEffect(() => {
     if (role !== 'display' || !matchIdForDisplay) return
+    if (isFirebaseEnabled()) {
+      const unsubscribe = subscribeMatchState(matchIdForDisplay, setDisplayState)
+      return unsubscribe
+    }
     const interval = setInterval(async () => {
       const s = await loadMatchState(matchIdForDisplay)
       if (s) setDisplayState(s)
@@ -229,7 +235,7 @@ export default function App() {
   }, [role, matchIdForDisplay])
 
   useEffect(() => {
-    if (role === 'display' && matchIdForDisplay) {
+    if (role === 'display' && matchIdForDisplay && !isFirebaseEnabled()) {
       loadMatchState(matchIdForDisplay).then((s) => s && setDisplayState(s))
     }
   }, [role, matchIdForDisplay])
